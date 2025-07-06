@@ -2,9 +2,9 @@
 <html lang="th">
 <head>
   <meta charset="utf-8" />
-  <title>I love Thailand</title>
+  <title>Thai words often gotten wrong</title>
   <style>
-    *{box-sizing:border-box;font-family:sans-serif}
+    *{box-sizing:border-box;font-family: "Noto Sans Thai Looped", sans-serif;}
     body{max-width:720px;margin:2rem auto;padding:0 1rem;text-align:center}
     h1{font-size:1.9rem;margin-bottom:1rem}
     #trainer{display:none;margin-top:2.5rem}
@@ -18,9 +18,12 @@
     #feedback{height:1.6rem;margin-top:.7rem;font-weight:bold}
     #voiceSelect{margin-top:1rem;padding:.5rem;font-size:1rem}
   </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai+Looped:wght@100..900&display=swap" rel="stylesheet">
 </head>
 <body>
-  <h1>😭😭😭😭😭😭😭😭</h1>
+  <h1>คำที่มักเขียนผิด</h1>
 
   <label for="voiceSelect">Voice:</label>
   <select id="voiceSelect"></select>
@@ -29,6 +32,11 @@
 
   <div id="trainer">
     <p id="counter"></p>
+    <progress id="progressBar" value="0" style="width:100%;height:18px"></progress>
+<div style="margin-top:.4rem;font-weight:bold">
+  <span id="leftCounter"></span> |
+  <span id="wrongCounter"></span>
+</div>
     <div>
       <button id="repeatBtn"      title="ฟังอีกครั้ง">🔊 ฟังอีกครั้ง</button>
       <button id="showAnswerBtn"  title="ดูคำตอบ">👁️ ดูคำตอบ</button>
@@ -46,6 +54,9 @@
 </section>
 
 <script type="module">
+/*───────────────────────────────────────────────────────────
+  1.  WORD LIST
+───────────────────────────────────────────────────────────*/
 const WORDS = [ "ไซซ์","ขโมย","งูสวัด","แคร์รอต","ขะมักเขม้น","เงินทดรองจ่าย","สะเหล่อ","ขาดดุล","จงกรม",
 "แอปเปิล","ข้าวเหนียวมูน","จะงอย","กงสุล","เข้าฌาน","จักจั่น","กฎ","ไข่มุก","จังไร","จัญไร","กระเพาะ","คทา",
 "จาระบี","จระบี","ก๋วยเตี๋ยว","ก๊วยเตี๋ยว","ครุภัณฑ์","จำนง","กะเทย","คลินิก","ชมพู่ม่าเหมี่ยว","กะบังลม",
@@ -66,31 +77,39 @@ const WORDS = [ "ไซซ์","ขโมย","งูสวัด","แคร์
 "เหล็กไหล","อีเมล","จัตุรัส","ดิลิเวอรี","ถั่วพู","นันทนาการ","บล็อก","ประจันหน้า","ประติมากรรม","แผ่หลา",
 "มหรสพ","มี่สั้ว","รังสรรค์","อัปเดต","เด็กแว้น" ];
 
-const voiceSelect     = document.getElementById('voiceSelect');
-const startBtn        = document.getElementById('startBtn');
-const trainer         = document.getElementById('trainer');
-const counter         = document.getElementById('counter');
-const repeatBtn       = document.getElementById('repeatBtn');
-const showAnswerBtn   = document.getElementById('showAnswerBtn');
-const answerForm      = document.getElementById('answerForm');
-const answerInput     = document.getElementById('answerInput');
-const feedback        = document.getElementById('feedback');
+/*───────────────────────────────────────────────────────────
+  2.  DOM REFERENCES
+───────────────────────────────────────────────────────────*/
+const voiceSelect   = document.getElementById('voiceSelect');
+const startBtn      = document.getElementById('startBtn');
+const trainer       = document.getElementById('trainer');
+const repeatBtn     = document.getElementById('repeatBtn');
+const showAnswerBtn = document.getElementById('showAnswerBtn');
+const answerForm    = document.getElementById('answerForm');
+const answerInput   = document.getElementById('answerInput');
+const feedback      = document.getElementById('feedback');
 
-let selectedVoice     = null;
+const progressBar   = document.getElementById('progressBar');
+const leftCounter   = document.getElementById('leftCounter');
+const wrongCounter  = document.getElementById('wrongCounter');
+const wrongList     = document.getElementById('wrongList');
 
-function buildVoiceList() {
+/*───────────────────────────────────────────────────────────
+  3.  VOICE PICKER
+───────────────────────────────────────────────────────────*/
+let selectedVoice = null;
+
+function buildVoiceList () {
   const voices = speechSynthesis.getVoices().filter(v => v.lang?.startsWith('th'));
-  voiceSelect.innerHTML = voices.map((v,i) =>
-    `<option value="${i}">${v.name}${v.name.match(/kang|กัง|กว|Female|หญิง/i) ? ' (F)' :
-                                   v.name.match(/sir|สิริ|Male|ชาย/i)   ? ' (M)' : ''}</option>`
+  voiceSelect.innerHTML = voices.map((v, i) =>
+    `<option value="${i}">${v.name}${/female|หญิง|kang|กัง|กว/i.test(v.name) ? ' (F)'
+                     : /male|ชาย|sir|สิริ/i.test(v.name)   ? ' (M)' : ''}</option>`
   ).join('');
-  const firstFemaleIdx = voices.findIndex(v => /female|หญิง|kang|กัง|กว/i.test(v.name));
-  voiceSelect.selectedIndex = firstFemaleIdx >= 0 ? firstFemaleIdx : 0;
+  voiceSelect.selectedIndex = voices.findIndex(v => /female|หญิง|kang|กัง|กว/i.test(v.name)) || 0;
   selectedVoice = voices[voiceSelect.selectedIndex] || null;
 }
-
 speechSynthesis.onvoiceschanged = buildVoiceList;
-buildVoiceList();  
+buildVoiceList();
 
 voiceSelect.onchange = () => {
   const voices = speechSynthesis.getVoices().filter(v => v.lang?.startsWith('th'));
@@ -99,89 +118,111 @@ voiceSelect.onchange = () => {
 
 const speak = word => {
   const u = new SpeechSynthesisUtterance(`คำว่า ${word}`);
-  u.lang = 'th-TH';
+  u.lang  = 'th-TH';
   if (selectedVoice) u.voice = selectedVoice;
   speechSynthesis.cancel();
   speechSynthesis.speak(u);
 };
 
-const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+/*───────────────────────────────────────────────────────────
+  4.  QUEUES & STATE
+───────────────────────────────────────────────────────────*/
+const TOTAL_WORDS = WORDS.length;
+progressBar.max   = TOTAL_WORDS;
 
-let queue=[], current='', showingAnswer=false;
-const updateCounter = () => counter.textContent = `เหลือคำ: ${queue.length}`;
+let mainQ   = [];          // words not yet seen
+let reviewQ = [];          // each word missed once
+let queue   = [];          // alias – whichever list we’re drilling
+let current = '';
+let showingAnswer = false;
 
-function nextWord(){
-  showingAnswer = false;
-  if (!queue.length){
-    trainer.innerHTML = '<h2>เสร็จสิ้น! ✔️</h2>';
-    return;
-  }
-  current = queue.shift();
-  updateCounter();
-  answerInput.value=''; answerInput.focus();
-  feedback.textContent='';
-  speak(current);
-  updateCounter();
+const wrongWords = new Set();
+
+/*───────────────────────────────────────────────────────────
+  5.  HELPERS
+───────────────────────────────────────────────────────────*/
+const shuffle = a => { for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; };
+
+function updateStats () {
+  leftCounter.textContent  = `เหลือคำ: ${mainQ.length}`;
+  wrongCounter.textContent = `คำที่ตอบผิด: ${wrongWords.size}`;
+  progressBar.value        = TOTAL_WORDS - mainQ.length;
 }
 
-const wrongList  = document.getElementById('wrongList');
-const wrongWords = new Set();               
-
-function addWrong(word){                    
-  if(!wrongWords.has(word)){
+function addWrong (word) {
+  if (!wrongWords.has(word)) {
     wrongWords.add(word);
     wrongList.insertAdjacentHTML('beforeend', `<li>${word}</li>`);
   }
+  if (!reviewQ.includes(word)) reviewQ.push(word);
+  updateStats();
 }
 
-/* ───── 6.  events ───── */
+/*───────────────────────────────────────────────────────────
+  6.  DRILL LOOP
+───────────────────────────────────────────────────────────*/
+function nextWord () {
+  showingAnswer = false;
+
+  // pick a queue to draw from
+  if (!queue.length) {
+    queue = mainQ.length ? mainQ : reviewQ;          // auto-switch to review after main
+    if (!queue.length) {                             // both empty ⇒ finished
+      trainer.innerHTML = '<h2>เสร็จสิ้น! ✔️</h2>';
+      return;
+    }
+  }
+
+  current = queue.shift();     // remove from front (affects mainQ or reviewQ)
+  updateStats();
+
+  answerInput.value = '';
+  answerInput.focus();
+  feedback.textContent = '';
+  speak(current);
+}
+
+/*───────────────────────────────────────────────────────────
+  7.  EVENTS
+───────────────────────────────────────────────────────────*/
 answerForm.addEventListener('submit', e => {
   e.preventDefault();
   const typed = answerInput.value.trim();
 
-  if (typed === current) {
+  if (typed === current) {             // ✔️ correct – move on
     feedback.textContent = '✔️ ถูกต้อง';
-    updateCounter();
     nextWord();
-  } else {
-  feedback.textContent = '❌ ลองใหม่…';
-  addWrong(current);
-
-  /* ✅ push only once */
-  if (!queue.includes(current)) {      // ← NEW
-    queue.push(current);               // add a *single* copy for later review
-    updateCounter();
+  } else {                             // ❌ wrong – stay on same word
+    feedback.textContent = '❌ ลองใหม่…';
+    addWrong(current);
+    speak(current);
+    answerInput.select();
   }
-
-  speak(current);
-  answerInput.select();
-}
 });
 
-repeatBtn.onclick    = () => speak(current);
+repeatBtn.onclick      = () => speak(current);
 
-showAnswerBtn.onclick = () => {
+showAnswerBtn.onclick  = () => {
   if (showingAnswer) return;
-
   feedback.textContent = `→ ${current}`;
-  addWrong(current);
-
-  /* ✅ avoid duplicates */
-  if (!queue.includes(current)) {      // ← NEW
-    queue.push(current);
-    updateCounter();
-  }
-
-  showingAnswer = true;
+  addWrong(current);           // log & schedule for review
+  showingAnswer = true;        // stay on this word until typed correctly
   answerInput.focus();
 };
 
 startBtn.onclick = () => {
-  queue = shuffle([...WORDS]);
-  startBtn.style.display='none';
-  trainer.style.display='block';
+  mainQ   = shuffle([...WORDS]);   // fresh run
+  reviewQ = [];
+  queue   = mainQ;
+  wrongWords.clear();
+  wrongList.innerHTML = '';
+
+  updateStats();
+  startBtn.style.display = 'none';
+  trainer.style.display  = 'block';
   nextWord();
 };
 </script>
+
 </body>
 </html>
