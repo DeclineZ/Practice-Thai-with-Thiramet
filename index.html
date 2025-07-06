@@ -143,7 +143,7 @@ answerForm.addEventListener('submit', e => {
     feedback.textContent = '✔️ ถูกต้อง';
     updateCounter();
     nextWord();
-  } if (typed !== current) {
+  } else {
   feedback.textContent = '❌ ลองใหม่…';
   addWrong(current);
 
