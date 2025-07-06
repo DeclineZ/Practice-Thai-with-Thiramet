@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <title>Thai Spelling-Trainer</title>
+  <style>
+    *{box-sizing:border-box;font-family:sans-serif}
+    body{max-width:720px;margin:2rem auto;padding:0 1rem;text-align:center}
+    h1{font-size:1.9rem;margin-bottom:1rem}
+    #trainer{display:none;margin-top:2.5rem}
+    #answerInput{width:100%;padding:.7rem;font-size:1.25rem;border:2px solid #ccc;border-radius:6px}
+    button{cursor:pointer;border:none;border-radius:6px;padding:.65rem 1.4rem;font-size:1rem;margin:.5rem}
+    button:not(:disabled):hover{filter:brightness(1.05)}
+    #startBtn      {background:#673ab7;color:#fff}
+    #submitBtn     {background:#4caf50;color:#fff}
+    #repeatBtn     {background:#2196f3;color:#fff}
+    #showAnswerBtn {background:#9e9e9e;color:#fff}
+    #feedback{height:1.6rem;margin-top:.7rem;font-weight:bold}
+    #voiceSelect{margin-top:1rem;padding:.5rem;font-size:1rem}
+  </style>
+</head>
+<body>
+  <h1>ฝึกสะกดคำภาษาไทย</h1>
+
+  <!-- ⭐ voice selector -->
+  <label for="voiceSelect">เลือกเสียง:</label>
+  <select id="voiceSelect"></select>
+
+  <button id="startBtn">เริ่มแบบฝึก</button>
+
+  <!-- drill UI -->
+  <div id="trainer">
+    <p id="counter"></p>
+    <div>
+      <button id="repeatBtn"      title="ฟังอีกครั้ง">🔊 ฟังอีกครั้ง</button>
+      <button id="showAnswerBtn"  title="ดูคำตอบ">👁️ ดูคำตอบ</button>
+    </div>
+    <form id="answerForm" autocomplete="off">
+      <input id="answerInput" type="text" placeholder="พิมพ์คำที่ได้ยินที่นี่…" required>
+      <button id="submitBtn" type="submit">ส่งคำตอบ</button>
+    </form>
+    <p id="feedback"></p>
+  </div>
+
+<script type="module">
+/* ───── 1.  word list (unchanged) ───── */
+const WORDS = [ "ไซซ์","ขโมย","งูสวัด","แคร์รอต","ขะมักเขม้น","เงินทดรองจ่าย","สะเหล่อ","ขาดดุล","จงกรม",
+"แอปเปิล","ข้าวเหนียวมูน","จะงอย","กงสุล","เข้าฌาน","จักจั่น","กฎ","ไข่มุก","จังไร","จัญไร","กระเพาะ","คทา",
+"จาระบี","จระบี","ก๋วยเตี๋ยว","ก๊วยเตี๋ยว","ครุภัณฑ์","จำนง","กะเทย","คลินิก","ชมพู่ม่าเหมี่ยว","กะบังลม",
+"ครุมเครือ","คลุมเครือ","ซาหริ่ม","ซ่าหริ่ม","กะพริบ","คำนวณ","เซ็นชื่อ","กะเพรา","คุกกี้","แซ่บ","กะหรี่",
+"เค้ก","ดอกจัน","กำเหน็จ","เครื่องยนต์","ดอกไม้จันท์","เกม","เครื่องราง","ตักบาตร","เกษียณอายุ",
+"แค็ตตาล็อก","ตานขโมย","เกษียนหนังสือ","แคบหมู","ทอนซิล","เกษียรสมุทร","แค็ปชัน","ทะเลสาบ","เกสร",
+"แค็ปเชอร์","ทูต","เกาต์","โคตร","เท่","แกงบวด","โควตา","เทกแคร์","กล้วยบวชชี","ฆราวาส","เท้าความ",
+"เทิด","เปอร์เซ็นต์","รสชาติ","แทรกแซง","แปรพักตร์","รักสามเส้า","ธำรง","ผัดไทย","ราง ๆ","นกอินทรี",
+"ผัดผ่อน","เลือดกบปาก","นอต","ผัดวันประกันพรุ่ง","ลำไย","นะคะ","พะแนง","ลิดรอน","นานา","พัศดี","ลูกนิมิต",
+"น้ำแข็งไส","พากย์หนัง","ลูกบาศก์","น้ำมันก๊าด","พิศวาส","เลิกรา","โน้ต","พิสมัย","ไลก์","บ่วงบาศ",
+"ฟังก์ชัน","วันทยหัตถ์","บอระเพ็ด","ฟุตพาท","วันทยาวุธ","บังสุกุล","เฟซบุ๊ก","วิ่งเปี้ยว","บาดทะยัก",
+"ภาพยนตร์","วิ่งผลัด","บำเหน็จ","มงกุฎ","วิดีโอ","บิณฑบาต","มณฑป","วิหารคด","บุคลากร","มัคคุเทศก์",
+"วีดิทัศน์","เบญจเพส","มัคนายก","เวทมนตร์","เบรก","มัดตราสัง","เวนคืน","โบ","มุกตลก","ศีรษะ","ประดิดประดอย",
+"แม่โพสพ","สไบ","ปลาสเตอร์","ย่อมเยา","สังเกต","ปิกนิก","รถเมล์","สังเขป","สันโดษ","โหระพา","อุบาทว์",
+"สัมมนา","องคชาต","แอปพลิเคชัน","สาบเสื้อ","อนุญาต","ปาราชิก","สาปแช่ง","อเนกประสงค์","ไอศกรีม","สายสิญจน์",
+"ออฟฟิศ","กระทะ","เหล็กใน","อัญชัน","กะละแม","สำอาง","อัปรีย์","กิจจะลักษณะ","สิริมงคล","อาเจียน","กุยช่าย",
+"เสน่ห์","อานิสงส์","ขึ้นฉ่าย","หลงใหล","อาเพศ","คริสต์ศักราช","หลับใหล","อิเล็กทรอนิกส์","บาร์โคด",
+"เหล็กไหล","อีเมล","จัตุรัส","ดิลิเวอรี","ถั่วพู","นันทนาการ","บล็อก","ประจันหน้า","ประติมากรรม","แผ่หลา",
+"มหรสพ","มี่สั้ว","รังสรรค์","อัปเดต","เด็กแว้น" ];
+
+/* ───── 2.  DOM refs ───── */
+const voiceSelect     = document.getElementById('voiceSelect');  // ⭐
+const startBtn        = document.getElementById('startBtn');
+const trainer         = document.getElementById('trainer');
+const counter         = document.getElementById('counter');
+const repeatBtn       = document.getElementById('repeatBtn');
+const showAnswerBtn   = document.getElementById('showAnswerBtn');
+const answerForm      = document.getElementById('answerForm');
+const answerInput     = document.getElementById('answerInput');
+const feedback        = document.getElementById('feedback');
+
+/* ───── 3.  voice handling ───── */
+let selectedVoice     = null;
+
+function buildVoiceList() {
+  // keep only Thai voices
+  const voices = speechSynthesis.getVoices().filter(v => v.lang?.startsWith('th'));
+  voiceSelect.innerHTML = voices.map((v,i) =>
+    `<option value="${i}">${v.name}${v.name.match(/kang|กัง|กว|Female|หญิง/i) ? ' (F)' :
+                                   v.name.match(/sir|สิริ|Male|ชาย/i)   ? ' (M)' : ''}</option>`
+  ).join('');
+  // choose first female-looking voice, else first voice
+  const firstFemaleIdx = voices.findIndex(v => /female|หญิง|kang|กัง|กว/i.test(v.name));
+  voiceSelect.selectedIndex = firstFemaleIdx >= 0 ? firstFemaleIdx : 0;
+  selectedVoice = voices[voiceSelect.selectedIndex] || null;
+}
+
+speechSynthesis.onvoiceschanged = buildVoiceList;
+buildVoiceList();  // initial run
+
+voiceSelect.onchange = () => {
+  const voices = speechSynthesis.getVoices().filter(v => v.lang?.startsWith('th'));
+  selectedVoice = voices[voiceSelect.value] || null;
+};
+
+/* ───── 4.  helpers ───── */
+const speak = word => {
+  const u = new SpeechSynthesisUtterance(`คำว่า ${word}`);
+  u.lang = 'th-TH';
+  if (selectedVoice) u.voice = selectedVoice;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+};
+
+const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+
+/* ───── 5.  drill logic ───── */
+let queue=[], current='', showingAnswer=false;
+const updateCounter = () => counter.textContent = `เหลือคำ: ${queue.length}`;
+
+function nextWord(){
+  showingAnswer = false;
+  if (!queue.length){
+    trainer.innerHTML = '<h2>เสร็จสิ้น! ✔️</h2>';
+    return;
+  }
+  current = queue.shift();
+  answerInput.value=''; answerInput.focus();
+  feedback.textContent='';
+  speak(current);
+  updateCounter();
+}
+
+/* ───── 6.  events ───── */
+answerForm.addEventListener('submit', e=>{
+  e.preventDefault();
+  const typed = answerInput.value.trim();
+  if(typed === current){
+    feedback.textContent='✔️ ถูกต้อง';
+    nextWord();
+  }else{
+    feedback.textContent='❌ ลองใหม่…';
+    if(!showingAnswer) queue.push(current);       // only push once per miss
+    speak(current);
+    answerInput.select();
+  }
+});
+
+repeatBtn.onclick    = () => speak(current);
+
+/* ⭐ Show answer fixes: reveal but DON’T advance */
+showAnswerBtn.onclick = () => {
+  if(showingAnswer) return;             // already revealed for this round
+  feedback.textContent = `→ ${current}`;
+  queue.push(current);                  // add to back for later
+  showingAnswer = true;                 // flag so we don't push twice
+  answerInput.focus();
+};
+
+startBtn.onclick = () => {
+  queue = shuffle([...WORDS]);
+  startBtn.style.display='none';
+  trainer.style.display='block';
+  nextWord();
+};
+</script>
+</body>
+</html>
