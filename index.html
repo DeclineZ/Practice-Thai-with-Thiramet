@@ -117,6 +117,7 @@ function nextWord(){
     return;
   }
   current = queue.shift();
+  updateCounter();
   answerInput.value=''; answerInput.focus();
   feedback.textContent='';
   speak(current);
@@ -140,23 +141,37 @@ answerForm.addEventListener('submit', e => {
 
   if (typed === current) {
     feedback.textContent = '✔️ ถูกต้อง';
+    updateCounter();
     nextWord();
-  } else {
-    feedback.textContent = '❌ ลองใหม่…';
-    addWrong(current);            
-    if (!showingAnswer) queue.push(current);
-    speak(current);
-    answerInput.select();
+  } if (typed !== current) {
+  feedback.textContent = '❌ ลองใหม่…';
+  addWrong(current);
+
+  /* ✅ push only once */
+  if (!queue.includes(current)) {      // ← NEW
+    queue.push(current);               // add a *single* copy for later review
+    updateCounter();
   }
+
+  speak(current);
+  answerInput.select();
+}
 });
 
 repeatBtn.onclick    = () => speak(current);
 
 showAnswerBtn.onclick = () => {
-  if (showingAnswer) return;       
+  if (showingAnswer) return;
+
   feedback.textContent = `→ ${current}`;
-  addWrong(current);              
-  queue.push(current);           
+  addWrong(current);
+
+  /* ✅ avoid duplicates */
+  if (!queue.includes(current)) {      // ← NEW
+    queue.push(current);
+    updateCounter();
+  }
+
   showingAnswer = true;
   answerInput.focus();
 };
