@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
   <meta charset="utf-8" />
-  <title>Thai Spelling-Trainer</title>
+  <title>I love Thailand</title>
   <style>
     *{box-sizing:border-box;font-family:sans-serif}
     body{max-width:720px;margin:2rem auto;padding:0 1rem;text-align:center}
@@ -20,15 +20,13 @@
   </style>
 </head>
 <body>
-  <h1>ฝึกสะกดคำภาษาไทย</h1>
+  <h1>😭😭😭😭😭😭😭😭</h1>
 
-  <!-- ⭐ voice selector -->
-  <label for="voiceSelect">เลือกเสียง:</label>
+  <label for="voiceSelect">Voice:</label>
   <select id="voiceSelect"></select>
 
-  <button id="startBtn">เริ่มแบบฝึก</button>
+  <button id="startBtn">Start</button>
 
-  <!-- drill UI -->
   <div id="trainer">
     <p id="counter"></p>
     <div>
@@ -42,8 +40,12 @@
     <p id="feedback"></p>
   </div>
 
+  <section id="wrongBox" style="margin-top:2rem;text-align:left">
+  <h3>คำที่ตอบผิด</h3>
+  <ul id="wrongList" style="margin:0;padding-inline-start:1.2rem"></ul>
+</section>
+
 <script type="module">
-/* ───── 1.  word list (unchanged) ───── */
 const WORDS = [ "ไซซ์","ขโมย","งูสวัด","แคร์รอต","ขะมักเขม้น","เงินทดรองจ่าย","สะเหล่อ","ขาดดุล","จงกรม",
 "แอปเปิล","ข้าวเหนียวมูน","จะงอย","กงสุล","เข้าฌาน","จักจั่น","กฎ","ไข่มุก","จังไร","จัญไร","กระเพาะ","คทา",
 "จาระบี","จระบี","ก๋วยเตี๋ยว","ก๊วยเตี๋ยว","ครุภัณฑ์","จำนง","กะเทย","คลินิก","ชมพู่ม่าเหมี่ยว","กะบังลม",
@@ -64,8 +66,7 @@ const WORDS = [ "ไซซ์","ขโมย","งูสวัด","แคร์
 "เหล็กไหล","อีเมล","จัตุรัส","ดิลิเวอรี","ถั่วพู","นันทนาการ","บล็อก","ประจันหน้า","ประติมากรรม","แผ่หลา",
 "มหรสพ","มี่สั้ว","รังสรรค์","อัปเดต","เด็กแว้น" ];
 
-/* ───── 2.  DOM refs ───── */
-const voiceSelect     = document.getElementById('voiceSelect');  // ⭐
+const voiceSelect     = document.getElementById('voiceSelect');
 const startBtn        = document.getElementById('startBtn');
 const trainer         = document.getElementById('trainer');
 const counter         = document.getElementById('counter');
@@ -75,31 +76,27 @@ const answerForm      = document.getElementById('answerForm');
 const answerInput     = document.getElementById('answerInput');
 const feedback        = document.getElementById('feedback');
 
-/* ───── 3.  voice handling ───── */
 let selectedVoice     = null;
 
 function buildVoiceList() {
-  // keep only Thai voices
   const voices = speechSynthesis.getVoices().filter(v => v.lang?.startsWith('th'));
   voiceSelect.innerHTML = voices.map((v,i) =>
     `<option value="${i}">${v.name}${v.name.match(/kang|กัง|กว|Female|หญิง/i) ? ' (F)' :
                                    v.name.match(/sir|สิริ|Male|ชาย/i)   ? ' (M)' : ''}</option>`
   ).join('');
-  // choose first female-looking voice, else first voice
   const firstFemaleIdx = voices.findIndex(v => /female|หญิง|kang|กัง|กว/i.test(v.name));
   voiceSelect.selectedIndex = firstFemaleIdx >= 0 ? firstFemaleIdx : 0;
   selectedVoice = voices[voiceSelect.selectedIndex] || null;
 }
 
 speechSynthesis.onvoiceschanged = buildVoiceList;
-buildVoiceList();  // initial run
+buildVoiceList();  
 
 voiceSelect.onchange = () => {
   const voices = speechSynthesis.getVoices().filter(v => v.lang?.startsWith('th'));
   selectedVoice = voices[voiceSelect.value] || null;
 };
 
-/* ───── 4.  helpers ───── */
 const speak = word => {
   const u = new SpeechSynthesisUtterance(`คำว่า ${word}`);
   u.lang = 'th-TH';
@@ -110,7 +107,6 @@ const speak = word => {
 
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
 
-/* ───── 5.  drill logic ───── */
 let queue=[], current='', showingAnswer=false;
 const updateCounter = () => counter.textContent = `เหลือคำ: ${queue.length}`;
 
@@ -127,16 +123,28 @@ function nextWord(){
   updateCounter();
 }
 
+const wrongList  = document.getElementById('wrongList');
+const wrongWords = new Set();               
+
+function addWrong(word){                    
+  if(!wrongWords.has(word)){
+    wrongWords.add(word);
+    wrongList.insertAdjacentHTML('beforeend', `<li>${word}</li>`);
+  }
+}
+
 /* ───── 6.  events ───── */
-answerForm.addEventListener('submit', e=>{
+answerForm.addEventListener('submit', e => {
   e.preventDefault();
   const typed = answerInput.value.trim();
-  if(typed === current){
-    feedback.textContent='✔️ ถูกต้อง';
+
+  if (typed === current) {
+    feedback.textContent = '✔️ ถูกต้อง';
     nextWord();
-  }else{
-    feedback.textContent='❌ ลองใหม่…';
-    if(!showingAnswer) queue.push(current);       // only push once per miss
+  } else {
+    feedback.textContent = '❌ ลองใหม่…';
+    addWrong(current);            
+    if (!showingAnswer) queue.push(current);
     speak(current);
     answerInput.select();
   }
@@ -144,12 +152,12 @@ answerForm.addEventListener('submit', e=>{
 
 repeatBtn.onclick    = () => speak(current);
 
-/* ⭐ Show answer fixes: reveal but DON’T advance */
 showAnswerBtn.onclick = () => {
-  if(showingAnswer) return;             // already revealed for this round
+  if (showingAnswer) return;       
   feedback.textContent = `→ ${current}`;
-  queue.push(current);                  // add to back for later
-  showingAnswer = true;                 // flag so we don't push twice
+  addWrong(current);              
+  queue.push(current);           
+  showingAnswer = true;
   answerInput.focus();
 };
 
